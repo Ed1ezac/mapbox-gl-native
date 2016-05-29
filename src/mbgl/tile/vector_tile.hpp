@@ -48,8 +48,7 @@ private:
     std::string name;
     uint32_t version = 1;
     uint32_t extent = 4096;
-    std::map<std::string, uint32_t> keysMap;
-    std::vector<std::reference_wrapper<const std::string>> keys;
+    std::vector<const std::string> keys;
     std::vector<Value> values;
     std::vector<protozero::pbf_reader> features;
 };
