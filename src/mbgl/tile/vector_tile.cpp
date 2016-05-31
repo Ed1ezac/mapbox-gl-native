@@ -59,8 +59,8 @@ VectorTileFeature::VectorTileFeature(protozero::pbf_reader feature_pbf, const Ve
 }
 
 optional<Value> VectorTileFeature::getValue(const std::string& key) const {
-    auto keyIter = std::find(layer.keys.begin(), layer.keys.end(), key);
-    if (keyIter == layer.keys.end()) {
+    auto keyIter = layer.keysMap.find(key);
+    if (keyIter == layer.keysMap.end()) {
         return optional<Value>();
     }
 
@@ -69,7 +69,7 @@ optional<Value> VectorTileFeature::getValue(const std::string& key) const {
     while (start_itr != end_itr) {
         uint32_t tag_key = static_cast<uint32_t>(*start_itr++);
 
-        if (layer.keys.size() <= tag_key) {
+        if (layer.keysMap.size() <= tag_key) {
             throw std::runtime_error("feature referenced out of range key");
         }
 
@@ -82,7 +82,7 @@ optional<Value> VectorTileFeature::getValue(const std::string& key) const {
             throw std::runtime_error("feature referenced out of range value");
         }
 
-        if (layer.keys[tag_key] == key) {
+        if (tag_key == keyIter->second) {
             return layer.values[tag_val];
         }
     }
@@ -191,7 +191,7 @@ VectorTileLayer::VectorTileLayer(protozero::pbf_reader layer_pbf) {
             features.push_back(layer_pbf.get_message());
             break;
         case 3: // keys
-            keys.emplace_back(layer_pbf.get_string());
+            keysMap.emplace(layer_pbf.get_string(), keysMap.size());
             break;
         case 4: // values
             values.emplace_back(parseValue(layer_pbf.get_message()));
@@ -206,6 +206,10 @@ VectorTileLayer::VectorTileLayer(protozero::pbf_reader layer_pbf) {
             layer_pbf.skip();
             break;
         }
+    }
+
+    for (auto &pair : keysMap) {
+        keys.emplace_back(std::reference_wrapper<const std::string>(pair.first));
     }
 }
 
