@@ -1,83 +1,21 @@
-#include <mapbox/geojsonvt/convert.hpp>
-
 #include <mbgl/annotation/shape_annotation_impl.hpp>
-#include <mbgl/annotation/annotation_manager.hpp>
 #include <mbgl/annotation/annotation_tile.hpp>
-#include <mbgl/util/constants.hpp>
-#include <mbgl/util/string.hpp>
-#include <mbgl/style/style.hpp>
-#include <mbgl/layer/line_layer.hpp>
-#include <mbgl/layer/fill_layer.hpp>
+#include <mbgl/tile/tile_id.hpp>
+#include <mbgl/math/wrap.hpp>
 #include <mbgl/math/clamp.hpp>
+#include <mbgl/util/string.hpp>
+#include <mbgl/util/constants.hpp>
+
+#include <mapbox/geojsonvt/convert.hpp>
 
 namespace mbgl {
 
-namespace geojsonvt = mapbox::geojsonvt;
+using namespace mapbox;
 
-ShapeAnnotationImpl::ShapeAnnotationImpl(const AnnotationID id_,
-                                         const ShapeAnnotation& shape_,
-                                         const uint8_t maxZoom_)
-: id(id_),
-  layerID("com.mapbox.annotations.shape." + util::toString(id)),
-  shape(shape_),
-  maxZoom(maxZoom_) {
-}
-
-void ShapeAnnotationImpl::updateStyle(Style& style) {
-    if (style.getLayer(layerID))
-        return;
-
-    if (shape.properties.is<LineAnnotationProperties>()) {
-        type = geojsonvt::ProjectedFeatureType::LineString;
-
-        std::unique_ptr<LineLayer> layer = std::make_unique<LineLayer>();
-        layer->layout.lineJoin = LineJoinType::Round;
-
-        const LineAnnotationProperties& properties = shape.properties.get<LineAnnotationProperties>();
-        layer->paint.lineOpacity = properties.opacity;
-        layer->paint.lineWidth = properties.width;
-        layer->paint.lineColor = properties.color;
-
-        layer->id = layerID;
-        layer->source = AnnotationManager::SourceID;
-        layer->sourceLayer = layer->id;
-
-        style.addLayer(std::move(layer), AnnotationManager::PointLayerID);
-
-    } else if (shape.properties.is<FillAnnotationProperties>()) {
-        type = geojsonvt::ProjectedFeatureType::Polygon;
-
-        std::unique_ptr<FillLayer> layer = std::make_unique<FillLayer>();
-
-        const FillAnnotationProperties& properties = shape.properties.get<FillAnnotationProperties>();
-        layer->paint.fillOpacity = properties.opacity;
-        layer->paint.fillColor = properties.color;
-        layer->paint.fillOutlineColor = properties.outlineColor;
-
-        layer->id = layerID;
-        layer->source = AnnotationManager::SourceID;
-        layer->sourceLayer = layer->id;
-
-        style.addLayer(std::move(layer), AnnotationManager::PointLayerID);
-
-    } else {
-        const StyleLayer* sourceLayer = style.getLayer(shape.properties.get<std::string>());
-        if (!sourceLayer) return;
-
-        std::unique_ptr<StyleLayer> layer = sourceLayer->clone();
-
-        type = layer->is<LineLayer>()
-            ? geojsonvt::ProjectedFeatureType::LineString
-            : geojsonvt::ProjectedFeatureType::Polygon;
-
-        layer->id = layerID;
-        layer->ref = "";
-        layer->source = AnnotationManager::SourceID;
-        layer->sourceLayer = layer->id;
-        layer->visibility = VisibilityType::Visible;
-
-        style.addLayer(std::move(layer), sourceLayer->id);
-    }
+ShapeAnnotationImpl::ShapeAnnotationImpl(const AnnotationID id_, const uint8_t maxZoom_)
+    : id(id_),
+      maxZoom(maxZoom_),
+      layerID("com.mapbox.annotations.shape." + util::toString(id)) {
 }
 
 struct ToGeoJSONVT {
@@ -159,22 +97,21 @@ private:
 };
 
 void ShapeAnnotationImpl::updateTile(const CanonicalTileID& tileID, AnnotationTile& tile) {
-    static const double baseTolerance = 4;
-
     if (!shapeTiler) {
+        static const double baseTolerance = 4;
         const uint64_t maxAmountOfTiles = 1 << maxZoom;
         const double tolerance = baseTolerance / (maxAmountOfTiles * util::EXTENT);
 
         std::vector<geojsonvt::ProjectedFeature> features = {
-            Geometry<double>::visit(shape.geometry, ToGeoJSONVT(tolerance))
+            Geometry<double>::visit(geometry(), ToGeoJSONVT(tolerance))
         };
 
-        mapbox::geojsonvt::Options options;
+        geojsonvt::Options options;
         options.maxZoom = maxZoom;
         options.buffer = 255u;
         options.extent = util::EXTENT;
         options.tolerance = baseTolerance;
-        shapeTiler = std::make_unique<mapbox::geojsonvt::GeoJSONVT>(features, options);
+        shapeTiler = std::make_unique<geojsonvt::GeoJSONVT>(features, options);
     }
 
     const auto& shapeTile = shapeTiler->getTile(tileID.z, tileID.x, tileID.y);
@@ -216,4 +153,4 @@ void ShapeAnnotationImpl::updateTile(const CanonicalTileID& tileID, AnnotationTi
     }
 }
 
-} // namespace mbgl
+}
