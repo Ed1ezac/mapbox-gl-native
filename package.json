@@ -20,7 +20,7 @@
     "aws-sdk": "^2.3.5",
     "express": "^4.11.1",
     "mapbox-gl-shaders": "mapbox/mapbox-gl-shaders#13aad76282c1b6c4d38fd46f373325dfec69ab01",
-    "mapbox-gl-test-suite": "mapbox/mapbox-gl-test-suite#b3441d9a285ffbe9b876677acb13d7df07e5b975",
+    "mapbox-gl-test-suite": "mapbox/mapbox-gl-test-suite#d2d19c69a167cfd0d5565cf811ac9eb31eddc2fa",
     "node-gyp": "^3.3.1",
     "request": "^2.72.0",
     "tape": "^4.5.1"
