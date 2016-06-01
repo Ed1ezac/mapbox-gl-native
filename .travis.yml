@@ -5,22 +5,22 @@ git:
 addons_shortcuts:
   addons_clang35: &clang35
     apt:
-      sources: [ 'ubuntu-toolchain-r-test', 'llvm-toolchain-precise-3.5' ]
-      packages: [ 'gdb', 'clang-3.5', 'libstdc++-4.9-dev', 'libstdc++6', 'libllvm3.4', 'xutils-dev',
-                  'libxxf86vm-dev', 'x11proto-xf86vidmode-dev', 'mesa-utils' ]
+      sources: [ 'ubuntu-toolchain-r-test' ]
+      packages: [ 'gdb', 'clang-3.5', 'libstdc++-4.9-dev', 'libstdc++6', 'libllvm3.4' ]
   addons_gcc5: &gcc5
     apt:
       sources: [ 'ubuntu-toolchain-r-test' ]
-      packages: [ 'gdb', 'g++-5', 'gcc-5', 'libllvm3.4', 'xutils-dev',
-                  'libxxf86vm-dev', 'x11proto-xf86vidmode-dev', 'mesa-utils' ]
+      packages: [ 'gdb', 'g++-5', 'gcc-5']
+  addons_glfw: &glfw
+    apt:
+      packages: [ 'mesa-utils', 'libxi-dev', 'libglu1-mesa-dev', 'x11proto-randr-dev', 'x11proto-xext-dev', 'libxrandr-dev',
+                  'x11proto-xf86vidmode-dev', 'libxxf86vm-dev', 'libxcursor-dev', 'libxinerama-dev' ]
   addons_qt4: &qt4
     apt:
-      sources: [ 'ubuntu-toolchain-r-test' ]
-      packages: [ 'gdb', 'g++-5', 'gcc-5', 'mesa-utils', 'qt4-default' ]
+      packages: [ 'mesa-utils', 'qt4-default' ]
   addons_qt5: &qt5
     apt:
-      sources: [ 'ubuntu-toolchain-r-test' ]
-      packages: [ 'gdb', 'g++-5', 'gcc-5', 'mesa-utils', 'qt5-default', 'libqt5opengl5-dev', 'qtdeclarative5-dev', 'qtpositioning5-dev', 'qtlocation5-dev' ]
+      packages: [ 'mesa-utils', 'qt5-default', 'libqt5opengl5-dev', 'qtdeclarative5-dev', 'qtpositioning5-dev', 'qtlocation5-dev' ]
 
 env:
   global:
@@ -58,9 +58,6 @@ matrix:
         - nvm use 4
         - make node
         - make test-node
-      after_script:
-        - ccache --show-stats
-        - ./platform/node/scripts/after_script.sh ${TRAVIS_JOB_NUMBER} ${TRAVIS_TAG:-}
 
     # GCC 5 - Debug - Coverage
     - os: linux
@@ -68,7 +65,7 @@ matrix:
       language: cpp
       compiler: ": linux-gcc5-debug"
       env: BUILDTYPE=Debug _CXX=g++-5 _CC=gcc-5 ENABLE_COVERAGE=1
-      addons: *gcc5
+      addons: [ gcc5, glfw ]
       after_script:
         - ccache --show-stats
         - ./platform/linux/scripts/coveralls.sh
@@ -79,7 +76,7 @@ matrix:
       language: cpp
       compiler: ": linux-gcc5-release"
       env: BUILDTYPE=Release _CXX=g++-5 _CC=gcc-5
-      addons: *gcc5
+      addons: [ *gcc5, *glfw ]
 
     # GCC 5 - Debug
     - os: linux
@@ -87,15 +84,16 @@ matrix:
       language: cpp
       compiler: ": linux-gcc5-debug"
       env: BUILDTYPE=Debug _CXX=g++-5 _CC=gcc-5
-      addons: *gcc5
+      addons: [ *gcc5, *glfw ]
 
-    # GCC 5 - Release
+    # Clang 3.5 - Release
     - os: linux
-      sudo: false
+      sudo: required
+      dist: trusty
       language: cpp
-      compiler: ": linux-gcc5-release"
-      env: BUILDTYPE=Release _CXX=g++-5 _CC=gcc-5
-      addons: *gcc5
+      compiler: ": linux-clang35-release"
+      env: BUILDTYPE=Release _CXX=clang++-3.5 _CC=clang-3.5
+      addons: [ *clang35, *glfw ]
 
     # Qt 4 - Release
     - os: linux
@@ -103,7 +101,7 @@ matrix:
       language: cpp
       compiler: ": linux-gcc5-release"
       env: FLAVOR=qt4 BUILDTYPE=Release _CXX=g++-5 _CC=gcc-5
-      addons: *qt4
+      addons: [ *gcc5, *qt4 ]
       script:
         - make qt-app test-qt
 
@@ -114,7 +112,9 @@ matrix:
       language: cpp
       compiler: ": linux-gcc5-release"
       env: FLAVOR=qt5 BUILDTYPE=Release _CXX=g++-5 _CC=gcc-5
-      addons: *qt5
+      addons:
+        <<: *gcc5
+        <<: *qt5
       script:
         - make qt-app qt-qml-app test-qt
 
